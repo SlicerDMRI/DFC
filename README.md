@@ -23,9 +23,13 @@ To evaluate the model with testing data:
 ```
 python test.py -indir <path of testing data> -modeldir <path of trainign model>
 ```
-Effective fiber clustering was achieved with the proposed method. Below is a visualization of the obtained clusters.
+Fast and effective fiber clustering was achieved with the proposed method. Below is a visualization of the obtained clusters.
 
 ![images](https://github.com/SlicerDMRI/DFC/blob/master/images/visualization%20of%20clusters.png)
+
+The training model and testing dataset are available here: https://github.com/SlicerDMRI/DFC/releases
+
+See our project page https://dfc.github.io/ for more details.
 
 ## Reference
 Chen, Yuqian, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O’Donnell. ["Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation."](https://link.springer.com/chapter/10.1007/978-3-030-87234-2_47) International Conference on Medical Image Computing and Computer-Assisted Intervention. Springer, Cham, 2021.
