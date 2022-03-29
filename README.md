@@ -3,8 +3,9 @@ __Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fa
 
 This code implements a deep learning method for white matter fiber clustering using diffusion MRI data, as described in the following paper:
 
-Yuqian Chen, Chaoyi Zhang, Yang Song, Tengfei Xue, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, Lauren J. O’Donnell.
+Yuqian Chen, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, Lauren J. O’Donnell.
 Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation. (MICCAI 2021, travel award)
+
 ![figure1](https://user-images.githubusercontent.com/59594831/160573732-fa1881b2-780d-41bb-86b6-c4eb6cae801d.png)
 
 ## Installation
@@ -25,3 +26,6 @@ python test.py -indir <path of testing data> -modeldir <path of trainign model>
 Effective fiber clustering was achieved with the proposed method. Below is a visualization of the obtained clusters.
 
 ![images](https://github.com/SlicerDMRI/DFC/blob/master/images/visualization%20of%20clusters.png)
+
+## Reference
+Chen, Yuqian, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O’Donnell. ["Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation."](https://link.springer.com/chapter/10.1007/978-3-030-87234-2_47) International Conference on Medical Image Computing and Computer-Assisted Intervention. Springer, Cham, 2021.
