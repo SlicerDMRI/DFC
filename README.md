@@ -29,7 +29,7 @@ Fast and effective fiber clustering was achieved with the proposed method. Below
 
 The training model and testing dataset are available here: https://github.com/SlicerDMRI/DFC/releases
 
-See our project page https://dfc.github.io/ for more details.
+See our project page https://deepfiberclustering.github.io/ for more details.
 
 ## Reference
 Chen, Yuqian, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O’Donnell. ["Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation."](https://link.springer.com/chapter/10.1007/978-3-030-87234-2_47) International Conference on Medical Image Computing and Computer-Assisted Intervention. Springer, Cham, 2021.
