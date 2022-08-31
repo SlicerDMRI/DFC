@@ -1,12 +1,12 @@
 # DFC (Deep Fiber Clustering)
-__Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation__
+__DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation__
 
 This code implements a deep learning method for white matter fiber clustering using diffusion MRI data, as described in the following paper:
 
-Yuqian Chen, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, Lauren J. O’Donnell.
-Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation. (MICCAI 2021, travel award)
+Chen, Yuqian, et al. "DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation." arXiv preprint arXiv:2205.00627 (2022).
 
-![figure1](https://user-images.githubusercontent.com/59594831/160573732-fa1881b2-780d-41bb-86b6-c4eb6cae801d.png)
+![fig1](https://user-images.githubusercontent.com/59594831/187730336-69dc9f41-2dee-48ac-9dec-3a25616d86b9.PNG)
+
 
 ## Installation
 The code has been tested with Python 3.7, Pytorch 1.7.1, CUDA 10.1 on Ubuntu 18.04.  
@@ -25,11 +25,11 @@ python test.py -indir <path of testing data> -modeldir <path of trainign model>
 ```
 Fast and effective fiber clustering was achieved with the proposed method. Below is a visualization of the obtained clusters.
 
-![images](https://github.com/SlicerDMRI/DFC/blob/master/images/visualization%20of%20clusters.png)
+![fig2](https://user-images.githubusercontent.com/59594831/187730397-26bfb67b-659e-4b47-b78f-8c4a1a711aea.PNG)
 
 The training model and testing dataset are available here: https://github.com/SlicerDMRI/DFC/releases
 
 See our project page https://deepfiberclustering.github.io/ for more details.
 
 ## Reference
-Chen, Yuqian, Chaoyi Zhang, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O’Donnell. ["Deep Fiber Clustering: Anatomically Informed Unsupervised Deep Learning for Fast and Effective White Matter Parcellation."](https://link.springer.com/chapter/10.1007/978-3-030-87234-2_47) International Conference on Medical Image Computing and Computer-Assisted Intervention. Springer, Cham, 2021.
+Chen, Yuqian, Chaoyi Zhang, Tengfei Xue, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O'Donnell. "DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation." arXiv preprint arXiv:2205.00627 (2022).
