@@ -21,7 +21,7 @@ python train.py -indir <path of training data>
 
 To evaluate the model with testing data:
 ```
-python test.py -indir <path of testing data> -modeldir <path of trainign model>
+python test.py -indir <path of testing data> -modeldir <path of training model>
 ```
 Fast and effective fiber clustering was achieved with the proposed method. Below is a visualization of the obtained clusters.
 
