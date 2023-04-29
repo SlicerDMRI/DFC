@@ -31,4 +31,4 @@ The training model and testing dataset are available here: https://github.com/Sl
 See our project page https://deepfiberclustering.github.io/ for more details.
 
 ## Reference
-Chen, Yuqian, Chaoyi Zhang, Tengfei Xue, Yang Song, Nikos Makris, Yogesh Rathi, Weidong Cai, Fan Zhang, and Lauren J. O'Donnell. "DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation." arXiv preprint arXiv:2205.00627 (2022).
+Chen Y, Zhang C, Xue T, Song Y, Makris N, Rathi Y, Cai W, Zhang F, O'Donnell LJ. Deep Fiber Clustering: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation. NeuroImage. 2023 Apr 3:120086.
