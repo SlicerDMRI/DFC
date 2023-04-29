@@ -1,12 +1,11 @@
 # DFC (Deep Fiber Clustering)
-__DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation__
+__Deep fiber clustering: Anatomically informed fiber clustering with self-supervised deep learning for fast and effective tractography parcellation__
 
 This code implements a deep learning method for white matter fiber clustering using diffusion MRI data, as described in the following paper:
 
-Chen, Yuqian, et al. "DFC: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation." arXiv preprint arXiv:2205.00627 (2022).
+Chen Y, Zhang C, Xue T, Song Y, Makris N, Rathi Y, Cai W, Zhang F, O'Donnell LJ. Deep Fiber Clustering: Anatomically Informed Fiber Clustering with Self-supervised Deep Learning for Fast and Effective Tractography Parcellation. NeuroImage. 2023 Apr 3:120086.
 
-![fig1](https://user-images.githubusercontent.com/59594831/187730336-69dc9f41-2dee-48ac-9dec-3a25616d86b9.PNG)
-
+![fig1](https://user-images.githubusercontent.com/59594831/235310542-1f329a8f-e0f1-448a-ae6f-314be4c9e75e.jpg)
 
 ## Installation
 The code has been tested with Python 3.7, Pytorch 1.7.1, CUDA 10.1 on Ubuntu 18.04.  
