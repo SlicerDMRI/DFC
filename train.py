@@ -2,16 +2,36 @@ from __future__ import print_function, division
 import numpy
 import whitematteranalysis as wma
 import training_functions_fiber_pair
-#import tract_feat
 import vtk
-from  test import DB_index,DB_index3
-from test import DiceScore
 from sklearn import metrics
 import fibers
 import glob
 import time
-from training_functions_fiber_pair import  calculate_predictions_test
+from training_functions_fiber_pair import  calculate_predictions_test,calculate_predictions_roi
+import argparse
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.optim import lr_scheduler
+from torchvision import datasets, models, transforms
+import os
+import math
+import fnmatch
+import nets
+import utils
+from torch.utils.tensorboard import SummaryWriter
+import mnist
+import fiber_distance
+import copy
 
+# Translate string entries to bool for parser
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 def list_files(input_dir,str):
     # Find input files
     input_mask = ("{0}/"+str+"*").format(input_dir)
@@ -77,39 +97,7 @@ def read_data(data_dir):
         input_pd,x_array,d_roi,fiber_surf_ve,fiber_surf_dk,fiber_surf_des = \
             convert_fiber_to_array(input_pd_fnames[i], numberOfFibers=args.numberOfFibers_train,fiberLength=args.fiberLength,
                                  numberOfFiberPoints=args.numberOfFiberPoints, preproces=False)
-        # def one_hot_encoding(ds_fs):
-        #     roi_map = numpy.load('relabel_map.npy')
-        #     ds_fs_onehot = numpy.zeros((len(ds_fs), len(numpy.unique(roi_map[1])))).astype(numpy.float32)
-        #     if not isinstance(ds_fs, list):
-        #         roi_unique = numpy.unique(ds_fs)
-        #         assert set(roi_unique).issubset(set(roi_map[0]))
-        #         for roi in roi_unique:
-        #             roi_new = roi_map[1][roi_map[0] == roi]
-        #             ds_fs[ds_fs == roi] = roi_new
-        #         for f in range(ds_fs.shape[0]):
-        #             roi_single = numpy.unique(ds_fs[f])
-        #             if roi_single[0] == 0:
-        #                 roi_single = roi_single[1:]
-        #             ds_fs_onehot[f, roi_single.astype(int)] = 1
-        #     else:
-        #         for f, roi_fiber in enumerate(ds_fs):
-        #             roi_unique = numpy.unique(roi_fiber)
-        #             assert set(roi_unique).issubset(set(roi_map[0]))
-        #             for roi in roi_unique:
-        #                 roi_new = roi_map[1][roi_map[0] == roi]
-        #                 roi_fiber[roi_fiber == roi] = roi_new
-        #             roi_single = numpy.unique(roi_fiber)
-        #             if roi_single[0] == 0:
-        #                 roi_single = roi_single[1:]
-        #             ds_fs_onehot[f, roi_single.astype(int)] = 1
-        #     return  ds_fs_onehot
-        # ds_fs_onehot=one_hot_encoding(d_roi)
-        # subject_id=(os.path.basename(input_pd_fnames[i])).split("_")[0]
-        #
-        # numpy.save('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/test_save/x_array_{}.npy'.format(subject_id),
-        #            x_array)
-        # numpy.save('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/test_save/x_roi_{}.npy'.format(subject_id),
-        #            ds_fs_onehot)
+
         fiber_surfs_ve.append(fiber_surf_ve)
         fiber_surfs_dk.append(fiber_surf_dk)
         fiber_surfs_des.append(fiber_surf_des)
@@ -121,45 +109,9 @@ def read_data(data_dir):
         else:
             d_rois.append(d_roi)
 
-    #d=numpy.array(d_rois).reshape((len(d_roi) * num_pd,d_roi.shape[1],d_roi.shape[2],d_roi.shape[3]))
-    # roi_uniques=numpy.array([])
-    # for roi in d_rois:
-    #     roi_unique=numpy.unique(roi)
-    #     #print(len(roi_unique))
-    #     roi_uniques=numpy.concatenate((roi_uniques,roi_unique))
-    #     roi_uniques=numpy.unique(roi_uniques)
-
-
-    # roi_origianl=[41,43,44,46,47,49,50,51,52,53,54,58,60,62,63,1100,2000,2100,3000,3100,4000,4100,5002]
-    # roi_origianl.extend(list(range(2001,2036)))
-    # roi_origianl.extend(list(range(3001, 3036)))
-    # roi_origianl.extend(list(range(4001, 4036)))
-    # roi_replace=[2,4,5,7,8,10,11,12,13,17,18,26,28,30,31,1000,1000,1000,1000,1000,1000,1000,5001]
-    # roi_replace.extend(list(range(1001,1036)))
-    # roi_replace.extend(list(range(1001,1036)))
-    # roi_replace.extend(list(range(1001, 1036)))
-    # #roi_check=numpy.stack((numpy.array(roi_origianl),numpy.array(roi_replace)),0)
-    # import copy
-    # roi_unique=numpy.unique(ds_fs)
-    # roi_merge=copy.deepcopy(roi_unique)
-    # for i,roi1 in enumerate(roi_origianl):
-    #     roi_merge[roi_unique==roi1]=roi_replace[i]
-    # roi_uni_merge = numpy.unique(roi_merge)
-    # roi_relabel=numpy.zeros(len(roi_unique))
-    # for i,roi in enumerate(roi_uni_merge):
-    #     roi_relabel[roi_merge==roi]=i
-    # # for ido, idr in zip(list(roi_origianl),list(roi_replace)):
-    # #     ds_fs[ds_fs == ido] = idr
-    # # roi_id = numpy.unique(ds_fs)
-    # ds_fs1 = copy.deepcopy(ds_fs)
-    # for i, id in zip(list(roi_relabel),list(roi_unique)):
-    #     ds_fs[ds_fs == id] = i
-    # roi_map = numpy.stack((roi_unique,roi_relabel),0)
-    # numpy.save('relabel_map.npy', roi_map)
     x_arrays = numpy.array(x_arrays).reshape((-1, x_array.shape[1], x_array.shape[2]))
     roi_map = numpy.load('relabel_map.npy')
-    # roi_map=numpy.concatenate((roi_map1,numpy.array([[80],[64]])),1)
-    # numpy.save('relabel_map.npy',roi_map)
+
     ds_fs_onehot = numpy.zeros((len(x_arrays), len(numpy.unique(roi_map[1])))).astype(numpy.float32)
     if len(d_rois)==num_pd:
         ds_fs = numpy.array(d_rois).reshape((len(x_array) * num_pd, -1))
@@ -189,15 +141,15 @@ def read_data(data_dir):
     fiber_surfs_dk = numpy.array(fiber_surfs_dk).reshape((-1, 2))
     fiber_surfs_des = numpy.array(fiber_surfs_des).reshape((-1, 2))
 
-    def surf_encoding(fiber_surf_ve, fiber_surf_dk, fiber_surf_des):
-        fiber_surfs = fiber_surf_ve.astype(int)
-        surf_labels = numpy.unique(fiber_surfs)
-        surf_map = numpy.load('ve_map.npy')
-        for surf_label in surf_labels:
-            fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
-        ds_surf_onehot_ve = numpy.zeros((len(fiber_surfs), len(surf_map)))
-        for s in range(len(fiber_surfs)):
-            ds_surf_onehot_ve[s, fiber_surfs[s]] = 1
+    def surf_encoding(fiber_surf_dk):
+        # fiber_surfs = fiber_surf_ve.astype(int)
+        # surf_labels = numpy.unique(fiber_surfs)
+        # surf_map = numpy.load('ve_map.npy')
+        # for surf_label in surf_labels:
+        #     fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
+        # ds_surf_onehot_ve = numpy.zeros((len(fiber_surfs), len(surf_map)))
+        # for s in range(len(fiber_surfs)):
+        #     ds_surf_onehot_ve[s, fiber_surfs[s]] = 1
 
         fiber_surfs = fiber_surf_dk.astype(int)
         surf_labels = numpy.unique(fiber_surfs)
@@ -208,18 +160,17 @@ def read_data(data_dir):
         for s in range(len(fiber_surfs)):
             ds_surf_onehot_dk[s, fiber_surfs[s]] = 1
 
-        fiber_surfs = fiber_surf_des.astype(int)
-        surf_labels = numpy.unique(fiber_surfs)
-        surf_map = numpy.load('des_map.npy')
-        for surf_label in surf_labels:
-            fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
-        ds_surf_onehot_des = numpy.zeros((len(fiber_surfs), len(surf_map)))
-        for s in range(len(fiber_surfs)):
-            ds_surf_onehot_des[s, fiber_surfs[s]] = 1
-        return ds_surf_onehot_ve, ds_surf_onehot_dk, ds_surf_onehot_des
+        # fiber_surfs = fiber_surf_des.astype(int)
+        # surf_labels = numpy.unique(fiber_surfs)
+        # surf_map = numpy.load('des_map.npy')
+        # for surf_label in surf_labels:
+        #     fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
+        # ds_surf_onehot_des = numpy.zeros((len(fiber_surfs), len(surf_map)))
+        # for s in range(len(fiber_surfs)):
+        #     ds_surf_onehot_des[s, fiber_surfs[s]] = 1
+        return ds_surf_onehot_dk
 
-    ds_surf_onehot_ve, ds_surf_onehot_dk, ds_surf_onehot_des = surf_encoding(fiber_surfs_ve, fiber_surfs_dk,
-                                                                             fiber_surfs_des)
+    ds_surf_onehot_dk = surf_encoding(fiber_surfs_dk)
     # from sklearn import preprocessing
     # ds_fs = preprocessing.MaxAbsScaler().fit_transform(ds_fs)*100
     #ds_fs=ds_fs.reshape(ds_fs.shape[0],d_roi.shape[1],d_roi.shape[2],d_roi.shape[3])
@@ -228,45 +179,248 @@ def read_data(data_dir):
     #ds_fs = ds_fs.transpose((0, 3, 1, 2))
     #ds_train1 = numpy.mean((ds_train, ds_trainf), axis=0)
     #ds_train1=numpy.concatenate((ds_train,ds_fs),axis=1)
-    return  input_pds,x_arrays,ds_fs_onehot,ds_surf_onehot_ve, ds_surf_onehot_dk, ds_surf_onehot_des
+    return  input_pds,x_arrays,ds_fs_onehot,ds_surf_onehot_dk
+def metrics_calculation(predicted, x_arrays, x_fs, x_surf):
+    loss_fn = DiceScore()
+
+    def tapc_calculation1(num_clusters, preds, roi_fs):
+        roi_cluster = numpy.zeros([num_clusters, roi_fs.shape[1]])
+        tapc_all = []
+        for i in range(num_clusters + 1):
+            t = roi_fs[preds == i]
+            if t.size == 0:
+                continue
+            else:
+                t1 = numpy.sum(t, 0)
+                roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
+                if 0 in roi_all:
+                    roi_all = roi_all[1:]
+                roi_cluster[i, roi_all] = 1
+                roi_preds = numpy.repeat(roi_cluster[i].reshape((1, len(roi_cluster[i]))), t.shape[0], axis=0)
+                tapc = loss_fn(t, roi_preds)
+                tapc_all.append(tapc)
+        # roi_preds = roi_cluster[preds]
+        # tapc = loss_fn(roi_fs, roi_preds)
+        tapc = numpy.mean(tapc_all)
+        return tapc, numpy.array(tapc_all)
+
+    def tspc_calculation1(num_clusters, preds, ds_surf_onehot):
+        tspc_sub = []
+        N_surf_all = []
+        for i in range(num_clusters + 1):
+            t = ds_surf_onehot[preds == i]
+            if t.size == 0:
+                continue
+            else:
+                t1 = numpy.sum(t, 0)
+                if t1.sum() == 0:
+                    continue
+                surf_cluster = t1 / t1.sum()
+                tspc_all = surf_cluster * t
+                tspc1 = numpy.sum(tspc_all, 1)
+                tspc_clu = numpy.mean(tspc1)
+
+                surf_all = numpy.where(t1 > 0)[0]
+                N_surf_all.append(len(surf_all))
+                tspc_sub.append(tspc_clu)
+        tspc = numpy.array(tspc_sub).mean()
+        N_surf_all = numpy.array(N_surf_all).mean()
+        return tspc, N_surf_all, numpy.array(tspc_sub)
+
+    tapc_train, tapc_all = tapc_calculation1(num_clusters, predicted, x_fs)
+    tspc_train, _, tspc_all = tspc_calculation1(num_clusters, predicted, x_surf)
+    DB_score, DB_all, dis_intra, dis_inter = DB_index3(x_arrays, predicted)
+    n_detected = 0
+    flag_detected = numpy.zeros(num_clusters)
+    for n in range(num_clusters):
+        n_fiber = numpy.sum(predicted == n)
+        if n_fiber >= 20:
+            n_detected += 1
+            flag_detected[n] = 1
+    wmpg_train = n_detected / num_clusters
+    utils.print_both(f,
+                     'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}'.format(DB_score, wmpg_train, tapc_train,
+                                                                                       tspc_train))
+    return DB_score, wmpg_train, tapc_train, tspc_train
+def roi_cluster_uptate(num_clusters, preds, x_fs):
+    roi_cluster = numpy.zeros([num_clusters, x_fs.shape[1]])
+    for i in range(num_clusters):
+        t = x_fs[preds == i]
+        t1 = numpy.sum(t, 0)
+        roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
+        if 0 in roi_all:
+            roi_all = roi_all[1:]
+        roi_cluster[i, roi_all] = 1
+    return roi_cluster
+def surf_cluster_uptate(num_clusters, preds, x_surf):
+    surf_cluster = numpy.zeros([num_clusters, x_surf.shape[1]])
+    for i in range(num_clusters):
+        t = x_surf[preds == i]
+        t1 = numpy.sum(t, 0)
+        surf_cluster[i] = t1 / t1.sum()
+    return surf_cluster
+def cluster_save(pd_c_list, outdir, input_pd, cluster_numbers_s, number_of_clusters, cluster_colors):
+    # if args.fs:
+    #     outdir=outdir+'_fs'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    print('<wm_cluster_atlas.py> Saving output cluster files in directory:', outdir)
+    cluster_sizes = list()
+    cluster_fnames = list()
+    fnames = list()
+    # cluster_colors = list()
+    for c in range(number_of_clusters):
+        mask = cluster_numbers_s == c
+        cluster_size = numpy.sum(mask)
+        cluster_sizes.append(cluster_size)
+        # pd_c = wma.filter.mask(output_polydata_s, mask, preserve_point_data=True, preserve_cell_data=True,verbose=False)
+        pd_c = pd_c_list[c]
+        # The clusters are stored starting with 1, not 0, for user friendliness.
+        fname_c = 'cluster_{0:05d}.vtp'.format(c + 1)
+        # save the filename for writing into the MRML file
+        fnames.append(fname_c)
+        # prepend the output directory
+        fname_c = os.path.join(outdir, fname_c)
+        cluster_fnames.append(fname_c)
+        wma.io.write_polydata(pd_c, fname_c)
+
+    # Notify user if some clusters empty
+    print(
+        "<wm_cluster_atlas.py> Checking for empty clusters (can be due to anatomical variability or too few fibers analyzed).")
+    for sz, fname in zip(cluster_sizes, cluster_fnames):
+        if sz == 0:
+            print(sz, ":", fname)
+
+    cluster_sizes = numpy.array(cluster_sizes)
+    print("<wm_cluster_from_atlas.py> Mean number of fibers per cluster:", numpy.mean(cluster_sizes),
+          "Range:",
+          numpy.min(cluster_sizes), "..", numpy.max(cluster_sizes))
+    # Also write one with 100%% of fibers displayed
+    fname = os.path.join(outdir, 'clustered_tracts_display_100_percent.mrml')
+    wma.mrml.write(fnames, numpy.around(numpy.array(cluster_colors), decimals=3), fname, ratio=0.1)
+    render = True
+    # View the whole thing in png format for quality control
+    if render:
+
+        try:
+            print('<wm_cluster_from_atlas.py> Rendering and saving images of clustered subject.')
+            ren = wma.render.render(input_pd, 1000, data_mode='Cell', data_name='EmbeddingColor',
+                                    verbose=False)
+            ren.save_views(outdir)
+            del ren
+        except:
+            print('<wm_cluster_from_atlas.py> No X server available.')
+
+    print("\n==========================")
+    print('<wm_cluster_from_atlas.py> Done clustering subject.  See output in directory:\n ', outdir, '\n')
+def add_prob(inpd, prob):
+    vtk_array = vtk.vtkDoubleArray()
+    vtk_array.SetName('Prob')
+    inpd.GetLines().InitTraversal()
+    for lidx in range(0, inpd.GetNumberOfLines()):
+        ptids = vtk.vtkIdList()
+        inpd.GetLines().GetNextCell(ptids)
+        prob_line = prob[lidx]
+        for pidx in range(0, ptids.GetNumberOfIds()):
+            vtk_array.InsertNextTuple1(prob_line)
+    inpd.GetPointData().AddArray(vtk_array)
+    return inpd
+class DiceLoss(nn.Module):
+    def __init__(self):
+        super(DiceLoss, self).__init__()
+
+    def forward(self, input, target):
+        N = target.size(0)
+        smooth = 1
+        input_flat = input.view(N, -1)
+        target_flat = target.view(N, -1)
+        # intersection = input_flat == target_flat
+        # loss = ((intersection.sum(1) + smooth)).float() / (input_flat.size(1)+ smooth)
+        intersection = input_flat * target_flat
+        if torch.sum(intersection)==0:
+            print('0')
+        loss = (2 * intersection.sum(1) + smooth) / (input_flat.sum(1) + target_flat.sum(1) + smooth)
+        loss = 1.3 - loss#.sum() / N
+        return loss
+class DiceScore(torch.nn.Module):
+    def __init__(self):
+        super(DiceScore, self).__init__()
+
+    def forward(self, input, target):
+        N = target.shape[0]
+        smooth = 1
+        # intersection = input_flat == target_flat
+        # loss = ((intersection.sum(1) + smooth)).float() / (input_flat.size(1)+ smooth)
+        intersection = input * target
+        # if torch.sum(intersection)==0:
+        #     print('0')
+        loss = (2 * intersection.sum(1) + smooth) / (input.sum(1) + target.sum(1) + smooth)
+        loss = loss.sum() / N
+        return loss
+def DB_index3(x_array,predicted):
+    #Sprint('mask')
+    cluster_id=numpy.unique(predicted)
+    fiber_array = numpy.reshape(x_array, (len(x_array), -1, 3))
+    alpha = []
+    c = []
+    flag_detected = numpy.zeros(len(cluster_id))
+    for id,i in enumerate(list(cluster_id)):
+        d_cluster=fiber_array[predicted==i]
+        assert not len(d_cluster)==0
+        if len(d_cluster) > 20:
+            flag_detected[id] = 1
+        if len(d_cluster) > 100:
+            numpy.random.seed(12345)
+            index = numpy.random.randint(0, len(d_cluster), 100)
+            #print(index)
+            d_cluster = d_cluster[index]
+        distance_array = numpy.zeros((len(d_cluster), len(d_cluster)))
+        distance_sum = numpy.zeros((len(d_cluster)))
+        assert not numpy.isnan(c).any()
+        for j in range(len(d_cluster)):
+            fiber=d_cluster[j]
+            distance = fiber_distance.fiber_distance(fiber, d_cluster)
+            distance_array[j,:]=distance
+            distance_sum[j] = numpy.sum(distance)
+        c.append(d_cluster[numpy.argmin(distance_sum)])
+        if len(d_cluster)==1:
+            distance_clu=0
+        else:
+            distance_clu=numpy.sum(distance_array)/(len(d_cluster)*(len(d_cluster)-1))
+        alpha.append(distance_clu)
+        #alpha.append(numpy.mean(distance_array))
+        assert not numpy.isnan(alpha).any()
+    DB_all=[]
+    dis_inter=[]
+    for i in range(len(cluster_id)):
+        alpha1=copy.deepcopy(alpha)
+        c1 = copy.deepcopy(c)
+        del c1[i]
+        del alpha1[i]
+        c1=numpy.array(c1)
+        alpha1 = numpy.array(alpha1)
+        temp=(alpha[i]+alpha1)/ (fiber_distance.fiber_distance(c[i], c1))
+        DB_clu=numpy.max(temp)
+        DB_all.append(DB_clu)
+        dis_inter_clu=numpy.min(fiber_distance.fiber_distance(c[i], c1))
+        dis_inter.append(dis_inter_clu)
+    DB_all=numpy.array(DB_all)
+    DB_all1=DB_all[numpy.where(flag_detected == 1)]
+    DB = numpy.mean(DB_all1)
+    dis_intra=numpy.array(alpha)
+    dis_inter=numpy.array(dis_inter)
+    return DB,DB_all,dis_intra,dis_inter
 
 if __name__ == "__main__":
-
-    import argparse
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from torch.optim import lr_scheduler
-    from torchvision import datasets, models, transforms
-    import os
-    import math
-    import fnmatch
-    import nets
-    import utils
-    from training_functions_fiber_pair import calculate_predictions_roi
-    from torch.utils.tensorboard import SummaryWriter
-
-    # Translate string entries to bool for parser
-    def str2bool(v):
-        if v.lower() in ('yes', 'true', 't', 'y', '1'):
-            return True
-        elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-            return False
-        else:
-            raise argparse.ArgumentTypeError('Boolean value expected.')
-
     parser = argparse.ArgumentParser(description='Use DCEC for clustering')
     parser.add_argument(
-        '-indir',action="store", dest="inputDirectory",default="/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/train_save",
+        '-indir',action="store", dest="inputDirectory",default="data/train",
         help='A file of whole-brain tractography as vtkPolyData (.vtk or .vtp).')
     parser.add_argument(
-        '-indirv',action="store", dest="inputDirectoryv",default="/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/validation",
+        '-indirv',action="store", dest="inputDirectoryv",default="data/train1",
         help='A file of whole-brain tractography as vtkPolyData (.vtk or .vtp).')
     parser.add_argument(
-        '-indirt',action="store", dest="inputDirectoryt",default="/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/test2",
-        help='A file of whole-brain tractography as vtkPolyData (.vtk or .vtp).')
-    parser.add_argument(
-        '-outdir',action="store", dest="outputDirectory",default="../torch_DFC/results",
+        '-outdir',action="store", dest="outputDirectory",default="results_atlas",
         help='Output folder of clustering results.')
     # parser.add_argument(
     #     '-mp',action="store", dest="model_pretrained",default="nets/CAE_pair_130_pretrained.pt",
@@ -280,15 +434,13 @@ if __name__ == "__main__":
     parser.add_argument(
         '-p', action="store", dest="numberOfFiberPoints", type=int, default=14,
         help='Number of points in each fiber to process. 10 is default.')
-    parser.add_argument('--test', default=False, type=str2bool, help='whether perform experiment on testing data')
     parser.add_argument('--fs', default=True, type=str2bool, help='inporparating freesurfer information')
     parser.add_argument('--surf', default=True, type=str2bool, help='inporparating cortical information')
     parser.add_argument('--ro', default=True, type=str2bool, help='outlier removal')
     parser.add_argument('--num_clusters', default=800, type=int, help='number of clusters')
     parser.add_argument('--embedding_dimension', default=10, type=int, help='number of embeddings')
-    parser.add_argument('--epochs', default=1, type=int, help='clustering epochs')
-    parser.add_argument('--epochs_pretrain', default=300, type=int, help='pretraining epochs')
-
+    parser.add_argument('--epochs', default=0, type=int, help='clustering epochs')
+    parser.add_argument('--epochs_pretrain', default=50, type=int, help='pretraining epochs')
     parser.add_argument('--mode', default='train_full', choices=['train_full', 'pretrain'], help='mode')
     parser.add_argument('--tensorboard', default=True, type=bool, help='export training stats to tensorboard')
     parser.add_argument('--pretrain', default=False, type=str2bool, help='perform autoencoder pretraining')
@@ -343,7 +495,7 @@ if __name__ == "__main__":
         except:
             pass
     params = {'pretrain': pretrain}
-    #params['model_pretrained']=args.model_pretrained
+
     # Directories
     # Create directories structure
     dirs = ['runs', 'reports', 'nets']
@@ -583,16 +735,9 @@ if __name__ == "__main__":
     elif dataset == 'Fiber':
         data_dir = args.inputDirectory
         data_dirv = args.inputDirectoryv
-        data_dirt=args.inputDirectoryt
         tmp = "\nData preparation\nReading data from:\t./" + data_dir
         utils.print_both(f, tmp)
-        # x_arrays=numpy.load(os.path.join(args.inputDirectory,'x_array.npy'))
-        # x_roi = numpy.load(os.path.join(args.inputDirectory, 'x_roi.npy'))
-        # x_surf_dk = numpy.load(os.path.join(args.inputDirectory, 'x_surf_dk.npy'))
-        input_pds,x_arrays,x_roi,x_surf_ve,x_surf_dk,x_surf_des=read_data(data_dir)
-        # numpy.save('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/train_save_15/x_array.npy',x_arrays)
-        # numpy.save('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/train_save_15/x_roi.npy',x_roi)
-        # numpy.save('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/train_save_15/x_surf_dk.npy',x_surf_dk)
+        input_pds,x_arrays,x_roi,x_surf_dk=read_data(data_dir)
         num_points = args.numberOfFiberPoints
         tmp = "numner of points used: {}".format(num_points)
         utils.print_both(f, tmp)
@@ -601,7 +746,7 @@ if __name__ == "__main__":
         dataloader = torch.utils.data.DataLoader(dataset,batch_size=batch, shuffle=True, num_workers=workers)
         dataloader1 = torch.utils.data.DataLoader(dataset, batch_size=batch, shuffle=False, num_workers=workers)
         if pretrain:
-            input_pdsv, x_arraysv, x_roiv,x_surf_vev,x_surf_dkv,x_surf_desv = read_data(data_dirv)
+            input_pdsv, x_arraysv, x_roiv,x_surf_dkv = read_data(data_dirv)
             datasetv = mnist.Fiber_pair(x_arraysv, x_roiv,x_surf_dkv, transform=transforms.Compose([transforms.ToTensor()]))
             dataloaderv = torch.utils.data.DataLoader(datasetv, batch_size=batch, shuffle=False, num_workers=workers)
         else:
@@ -612,14 +757,10 @@ if __name__ == "__main__":
         dataset_size = len(dataset)
         tmp = "Training set size:\t" + str(dataset_size)
         utils.print_both(f, tmp)
-        #test_arrays=list_files(data_dirt,'x_array')
-        #test_rois = list_files(data_dirt, 'x_roi')
-        test_data = os.listdir(data_dirt)
 
     elif dataset == 'FiberMap':
         data_dir = args.inputDirectory
         data_dirv = args.inputDirectoryv
-        data_dirt=args.inputDirectoryt
         tmp = "\nData preparation\nReading data from:\t./" + data_dir
         utils.print_both(f, tmp)
         x_arrays = numpy.load(os.path.join(args.inputDirectory, 'x_array.npy'))
@@ -645,13 +786,10 @@ if __name__ == "__main__":
         dataset_size = len(dataset)
         tmp = "Training set size:\t" + str(dataset_size)
         utils.print_both(f, tmp)
-        # test_arrays=list_files(data_dirt,'x_array')
-        # test_rois = list_files(data_dirt, 'x_roi')
-        test_data = os.listdir(data_dirt)
+
     elif dataset == 'FiberCom':
         data_dir = args.inputDirectory
         data_dirv = args.inputDirectoryv
-        data_dirt = args.inputDirectoryt
         tmp = "\nData preparation\nReading data from:\t./" + data_dir
         utils.print_both(f, tmp)
         x_arrays = numpy.load(os.path.join(args.inputDirectory, 'x_array.npy'))
@@ -660,7 +798,6 @@ if __name__ == "__main__":
         img_size = [28, 28, 3]
         tmp = "Image size used:\t{0}x{1}".format(img_size[0], img_size[1])
         utils.print_both(f, tmp)
-        import mnist
 
         dataset = mnist.FiberCom_pair(x_arrays, x_roi, transform=transforms.Compose([transforms.ToTensor()]))
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch, shuffle=False, num_workers=workers)
@@ -674,8 +811,6 @@ if __name__ == "__main__":
         dataset_size = len(dataset)
         tmp = "Training set size:\t" + str(dataset_size)
         utils.print_both(f, tmp)
-        test_arrays = list_files(data_dirt, 'x_array')
-        test_rois = list_files(data_dirt, 'x_roi')
     else:
         # Data folder
         data_dir = args.inputDirectory
@@ -788,120 +923,7 @@ if __name__ == "__main__":
     if args.mode == 'train_full':
         model_pretrained, model,preds_initial, preds_final,probs_final= training_functions_fiber_pair.train_model(model, dataloader, dataloaderv,dataloader1, #,preds_initial, preds
                                                                                    criteria, optimizers, schedulers, epochs, params,x_roi,args.fs,x_surf_dk,args.surf)
-        list_all=[]
-        #n_random=numpy.random.randint(0,num_clusters,100)
-        for n in range(800):
-            # print(n)
-            probs_cluster=probs_final[preds_final==n]
-            list_all.append(probs_cluster)
-        import matplotlib.pyplot as plt
-        figure,axes=plt.subplots(figsize=(50,6))
-        flierprops=dict(marker='+',markersize=3)
-        axes.boxplot(list_all,patch_artist=True,widths=0.8,flierprops=flierprops)
-        plt.ylim([0, 0.6])
-        #plt.savefig('probablities_clusters_train.png')
 
-        def metrics_calculation(predicted,x_arrays,x_fs,x_surf):
-            loss_fn = DiceScore()
-            # def tapc_calculation1(num_clusters, preds, roi_fs):
-            #     roi_cluster = numpy.zeros([num_clusters, roi_fs.shape[1]])
-            #     for i in range(num_clusters + 1):
-            #         t = roi_fs[preds == i]
-            #         if t.size == 0:
-            #             continue
-            #         else:
-            #             t1 = numpy.sum(t, 0)
-            #             roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
-            #             if 0 in roi_all:
-            #                 roi_all = roi_all[1:]
-            #             roi_cluster[i, roi_all] = 1
-            #     roi_preds = roi_cluster[preds]
-            #     tapc = loss_fn(roi_fs, roi_preds)
-            #     return tapc
-            # def tspc_calculation1(num_clusters,preds,ds_surf_onehot):
-            #     tspc_sub=[]
-            #     N_surf_all=[]
-            #     for i in range(num_clusters + 1):
-            #         t = ds_surf_onehot[preds == i]
-            #         if t.size == 0:
-            #             continue
-            #         else:
-            #             t1 = numpy.sum(t, 0)
-            #             surf_cluster = t1 / t1.sum()
-            #             tspc_all = surf_cluster * t
-            #             tspc1 = numpy.sum(tspc_all, 1)
-            #
-            #             surf_all = numpy.where(t1 > 0)[0]
-            #             N_surf_all.append(len(surf_all))
-            #             tspc_sub.extend(list(tspc1))
-            #     tspc = numpy.array(tspc_sub).mean()
-            #     N_surf_all=numpy.array(N_surf_all).mean()
-            #     return tspc,N_surf_all
-            def tapc_calculation1(num_clusters, preds, roi_fs):
-                roi_cluster = numpy.zeros([num_clusters, roi_fs.shape[1]])
-                tapc_all=[]
-                for i in range(num_clusters + 1):
-                    t = roi_fs[preds == i]
-                    if t.size == 0:
-                        continue
-                    else:
-                        t1 = numpy.sum(t, 0)
-                        roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
-                        if 0 in roi_all:
-                            roi_all = roi_all[1:]
-                        roi_cluster[i, roi_all] = 1
-                        roi_preds=numpy.repeat(roi_cluster[i].reshape((1,len(roi_cluster[i]))),t.shape[0],axis=0)
-                        tapc=loss_fn(t, roi_preds)
-                        tapc_all.append(tapc)
-                # roi_preds = roi_cluster[preds]
-                # tapc = loss_fn(roi_fs, roi_preds)
-                tapc=numpy.mean(tapc_all)
-                return tapc,numpy.array(tapc_all)
-            def tspc_calculation1(num_clusters,preds,ds_surf_onehot):
-                tspc_sub=[]
-                N_surf_all=[]
-                for i in range(num_clusters + 1):
-                    t = ds_surf_onehot[preds == i]
-                    if t.size == 0:
-                        continue
-                    else:
-                        t1 = numpy.sum(t, 0)
-                        if t1.sum()==0:
-                            continue
-                        surf_cluster = t1 / t1.sum()
-                        tspc_all = surf_cluster * t
-                        tspc1 = numpy.sum(tspc_all, 1)
-                        tspc_clu=numpy.mean(tspc1)
-
-                        surf_all = numpy.where(t1 > 0)[0]
-                        N_surf_all.append(len(surf_all))
-                        tspc_sub.append(tspc_clu)
-                tspc = numpy.array(tspc_sub).mean()
-                N_surf_all=numpy.array(N_surf_all).mean()
-                return tspc,N_surf_all,numpy.array(tspc_sub)
-            tapc_train,tapc_all = tapc_calculation1(num_clusters, predicted, x_fs)
-            tspc_train,_,tspc_all = tspc_calculation1(num_clusters, predicted, x_surf)
-            # print(x_arrays.shape)
-            # print(predicted.shape)
-            DB_score,DB_all,dis_intra,dis_inter = DB_index3(x_arrays, predicted)
-            n_detected = 0
-            flag_detected=numpy.zeros(num_clusters)
-            for n in range(num_clusters):
-                n_fiber = numpy.sum(predicted == n)
-                if n_fiber >= 20:
-                    n_detected += 1
-                    flag_detected[n]=1
-            wmpg_train = n_detected / num_clusters
-            # print('dis_intra:',dis_intra.mean())
-            # print('dis_inter:', dis_inter.mean())
-            #numpy.savez('debug_ro/results.nzp',DB_all,tapc_all,tspc_all,dis_intra,dis_inter)
-            # DB1=DB_score
-            # print(len(DB_all),len(flag_detected))
-            # DB_score=numpy.mean(DB_all[numpy.where(flag_detected == 1)])
-            # print(DB1,DB_score)
-            #print(DB_score, wmpg_train, tapc_train,tspc_train)
-            utils.print_both(f,  'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}'.format(DB_score, wmpg_train, tapc_train,tspc_train))
-            return DB_score,wmpg_train,tapc_train,tspc_train
         if args.fs:
             if args.surf:
                 name_net_save = name_net + '_{}_fs_surf.pt'.format(epochs)
@@ -909,30 +931,13 @@ if __name__ == "__main__":
                 name_net_save=name_net + '_{}_fs.pt'.format(epochs)
             torch.save(model.state_dict(), name_net_save)
             print(name_net_save)
-        def roi_cluster_uptate(num_clusters, preds, x_fs):
-            roi_cluster = numpy.zeros([num_clusters, x_fs.shape[1]])
-            for i in range(num_clusters):
-                t = x_fs[preds == i]
-                t1 = numpy.sum(t, 0)
-                roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
-                if 0 in roi_all:
-                    roi_all = roi_all[1:]
-                roi_cluster[i, roi_all] = 1
-            return roi_cluster
-        def surf_cluster_uptate(num_clusters, preds, x_surf):
-            surf_cluster = numpy.zeros([num_clusters, x_surf.shape[1]])
-            for i in range(num_clusters):
-                t = x_surf[preds == i]
-                t1 = numpy.sum(t, 0)
-                surf_cluster[i] = t1 / t1.sum()
-            return surf_cluster
 
         if args.fs:
             roi_cluster = roi_cluster_uptate(model.num_clusters, preds_final, x_roi)
-            numpy.save('roi_cluster_fs.npy', roi_cluster)
+            numpy.save('profiles/roi_cluster_fs.npy', roi_cluster)
         #if args.surf:
             surf_cluster = surf_cluster_uptate(model.num_clusters, preds_final, x_surf_dk)
-            numpy.save('surf_cluster_fs.npy', surf_cluster)
+            numpy.save('profiles/surf_cluster_fs.npy', surf_cluster)
         metrics_calculation(preds_initial, x_arrays, x_roi,x_surf_dk)
         metrics_calculation(preds_final, x_arrays, x_roi,x_surf_dk)
 
@@ -948,61 +953,6 @@ if __name__ == "__main__":
         outdir = args.outputDirectory
         if not os.path.exists(outdir):
             os.makedirs(outdir)
-
-        def cluster_save(pd_c_list, outdir, input_pd, cluster_numbers_s, number_of_clusters, cluster_colors):
-                # if args.fs:
-                #     outdir=outdir+'_fs'
-                if not os.path.exists(outdir):
-                    os.makedirs(outdir)
-                print('<wm_cluster_atlas.py> Saving output cluster files in directory:', outdir)
-                cluster_sizes = list()
-                cluster_fnames = list()
-                fnames = list()
-                # cluster_colors = list()
-                for c in range(number_of_clusters):
-                    mask = cluster_numbers_s == c
-                    cluster_size = numpy.sum(mask)
-                    cluster_sizes.append(cluster_size)
-                    # pd_c = wma.filter.mask(output_polydata_s, mask, preserve_point_data=True, preserve_cell_data=True,verbose=False)
-                    pd_c = pd_c_list[c]
-                    # The clusters are stored starting with 1, not 0, for user friendliness.
-                    fname_c = 'cluster_{0:05d}.vtp'.format(c + 1)
-                    # save the filename for writing into the MRML file
-                    fnames.append(fname_c)
-                    # prepend the output directory
-                    fname_c = os.path.join(outdir, fname_c)
-                    cluster_fnames.append(fname_c)
-                    wma.io.write_polydata(pd_c, fname_c)
-
-                # Notify user if some clusters empty
-                print(
-                    "<wm_cluster_atlas.py> Checking for empty clusters (can be due to anatomical variability or too few fibers analyzed).")
-                for sz, fname in zip(cluster_sizes, cluster_fnames):
-                    if sz == 0:
-                        print(sz, ":", fname)
-
-                cluster_sizes = numpy.array(cluster_sizes)
-                print("<wm_cluster_from_atlas.py> Mean number of fibers per cluster:", numpy.mean(cluster_sizes),
-                      "Range:",
-                      numpy.min(cluster_sizes), "..", numpy.max(cluster_sizes))
-                # Also write one with 100%% of fibers displayed
-                fname = os.path.join(outdir, 'clustered_tracts_display_100_percent.mrml')
-                wma.mrml.write(fnames, numpy.around(numpy.array(cluster_colors), decimals=3), fname, ratio=0.1)
-                render = True
-                # View the whole thing in png format for quality control
-                if render:
-
-                    try:
-                        print('<wm_cluster_from_atlas.py> Rendering and saving images of clustered subject.')
-                        ren = wma.render.render(input_pd, 1000, data_mode='Cell', data_name='EmbeddingColor',
-                                                verbose=False)
-                        ren.save_views(outdir)
-                        del ren
-                    except:
-                        print('<wm_cluster_from_atlas.py> No X server available.')
-
-                print("\n==========================")
-                print('<wm_cluster_from_atlas.py> Done clustering subject.  See output in directory:\n ', outdir, '\n')
         if args.ro:
             #num_stds = [0.4,0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0,0.01,0.015,0.02,0.025,0.03,0.035,0.040,0.045,0.050]
             num_stds=[0.7]
@@ -1057,432 +1007,7 @@ if __name__ == "__main__":
                         print(input_pd.GetNumberOfLines(),preds_fs_surf_ro.shape)
                         pd_c_list = wma.cluster.mask_all_clusters(input_pd, preds_fs_surf_ro,num_clusters,preserve_point_data=True,
                                                                               preserve_cell_data=True, verbose=False)
-                        cluster_save(pd_c_list, outdir, input_data, preds_fs_surf_ro, num_clusters, cluster_colors)
-
-
-        def add_prob(inpd, prob):
-            vtk_array = vtk.vtkDoubleArray()
-            vtk_array.SetName('Prob')
-            inpd.GetLines().InitTraversal()
-            for lidx in range(0, inpd.GetNumberOfLines()):
-                ptids = vtk.vtkIdList()
-                inpd.GetLines().GetNextCell(ptids)
-                prob_line = prob[lidx]
-                for pidx in range(0, ptids.GetNumberOfIds()):
-                    vtk_array.InsertNextTuple1(prob_line)
-            inpd.GetPointData().AddArray(vtk_array)
-            return inpd
-        def fiber_cluster_save(input_pds,predicted,outfolder,x_arrays,x_fs):
-            def roi_cluster_uptate(num_clusters, preds, x_fs):
-                roi_cluster = numpy.zeros([num_clusters, x_fs.shape[1]])
-                for i in range(num_clusters):
-                    t = x_fs[preds == i]
-                    t1 = numpy.sum(t, 0)
-                    roi_all = numpy.where(t1 > t.shape[0] * 0.4)[0]
-                    if 0 in roi_all:
-                        roi_all = roi_all[1:]
-                    roi_cluster[i, roi_all] = 1
-                return roi_cluster
-            # def roi_cluster_uptate(num_clusters, preds, x_fs):
-            #     # Initialise roi distribution
-            #     n_roi=len(numpy.unique(x_fs))
-            #     roi_cluster = -numpy.ones((num_clusters, n_roi))
-            #     for i in range(num_clusters):
-            #         roi_onehot = numpy.zeros(n_roi)
-            #         t = x_fs[preds == i]
-            #         roi_all = numpy.unique(t)
-            #         if 0 in roi_all:
-            #             index_0 = roi_all != 0
-            #             roi_all = roi_all[index_0]
-            #         for roi in list(roi_all):
-            #             x,y = numpy.where(t == roi)
-            #             n = len(numpy.unique(x))
-            #             # print(n)
-            #             if n > t.shape[0] * 0.4:
-            #                 roi_onehot[int(roi)] = 1
-            #         roi_cluster[i] = roi_onehot
-            #     return roi_cluster
-            roi_cluster = roi_cluster_uptate(model.num_clusters, predicted, x_fs)
-            loss_fn = DiceScore()
-            # ds_fs_onehot = numpy.zeros((x_fs.shape[0], roi_cluster.shape[1]))
-            # for f in range(x_fs.shape[0]):
-            #     roi_single = numpy.unique(x_fs[f])
-            #     if roi_single[0] == 0:
-            #         roi_single=roi_single[1:]
-            #     ds_fs_onehot[f, roi_single.astype(int)] = 1
-            def tapc_calculation(preds, roi_fs,roi_cluster):
-                #roi_cluster = numpy.load('roi_cluster.npy')
-                roi_preds = roi_cluster[preds]
-                tapc = loss_fn(roi_fs, roi_preds)
-                return tapc
-
-            tapc_train = tapc_calculation(predicted, x_fs,roi_cluster)
-            DB_score = DB_index(x_arrays, predicted)
-            n_detected=0
-            for n in range(num_clusters):
-                n_fiber=numpy.sum(predicted==n)
-                if n_fiber>=20:
-                    n_detected+=1
-            wmpg_train=n_detected/num_clusters
-            print(outfolder,DB_score,wmpg_train,tapc_train)
-            #predicted[6] = 800
-            # if args.fs:
-            #     numpy.save('roi_cluster_fs.npy', roi_cluster)
-            # else:
-            #     numpy.save('roi_cluster.npy', roi_cluster)
-            cluster_colors = numpy.random.randint(0, 255, (num_clusters, 3))
-            # appender = vtk.vtkAppendPolyData()
-            # for pd in input_pds:
-            #     if (vtk.vtkVersion().GetVTKMajorVersion() >= 6.0):
-            #         appender.AddInputData(pd)
-            #     else:
-            #         appender.AddInput(pd)
-            # appender.Update()
-            # input_data = appender.GetOutput()
-            #outdir = os.path.join(args.outputDirectory, outfolder)
-            #outdir = '/media/annabelchen/DataShare/deepClustering/cluster_dcec/journal_atlas'
-            # if not os.path.exists(outdir):
-            #     os.makedirs(outdir)
-            # numpy.save(outdir + '/predicted.npy', predicted)
-            # print('outdir:', outdir)
-            # Save final model
-            #torch.save(model.state_dict(), name_net + '.pt')
-            # print(name)
-            # pd_c_list = wma.cluster.mask_all_clusters(input_data, predicted,
-            #                                                                             num_clusters,
-            #                                                                             preserve_point_data=True,
-            #                                                                             preserve_cell_data=True,
-            #                                                                             verbose=False)
-            # cluster_save(pd_c_list, outdir, input_data, predicted,
-            #              num_clusters, cluster_colors)
-        # fiber_cluster_save(input_pdsv,preds_km,'km',x_roiv)
-        # fiber_cluster_save(input_pdsv, preds_initial, 'initial',x_arraysv,x_roiv)
-        #fiber_cluster_save(input_pds, preds_final, 'final',x_arrays,x_roi)
-
-        #args.test=False
-        if args.test:
-            DB_all = []
-            wmpg_all = []
-            tapc_all = []
-            tspc_all = []
-            DB_all_pre = []
-            wmpg_all_pre = []
-            tapc_all_pre = []
-            tspc_all_pre = []
-            DB_all_ro = []
-            wmpg_all_ro = []
-            tapc_all_ro = []
-            tspc_all_ro = []
-            rate_left_all=[]
-            input_pd_fnames = wma.io.list_vtk_files(data_dirt)
-            for i in range(len(input_pd_fnames)):
-                subject_id = os.path.split(input_pd_fnames[i])[1].split('.')[0]
-                # if os.path.exists(os.path.join('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/test_save_PPMI',
-                #                  subject_id + '_data.npz')):
-                #     print(subject_id,'continue')
-                #     continue
-                input_pd, x_array, d_roi, fiber_surf_ve, fiber_surf_dk, fiber_surf_des = \
-                    convert_fiber_to_array(input_pd_fnames[i], numberOfFibers=None,fiberLength=args.fiberLength,numberOfFiberPoints=args.numberOfFiberPoints, preproces=True,data=args.data)
-                def one_hot_encoding(ds_fs):
-                    roi_map = numpy.load('relabel_map.npy')
-                    ds_fs_onehot = numpy.zeros((len(ds_fs), len(numpy.unique(roi_map[1])))).astype(numpy.float32)
-                    if not isinstance(ds_fs, list):
-                        roi_unique = numpy.unique(ds_fs)
-                        print(roi_unique)
-                        print(roi_map[0])
-                        assert set(roi_unique).issubset(set(roi_map[0]))
-                        for roi in roi_unique:
-                            roi_new = roi_map[1][roi_map[0] == roi]
-                            ds_fs[ds_fs == roi] = roi_new
-                        for f in range(ds_fs.shape[0]):
-                            roi_single = numpy.unique(ds_fs[f])
-                            if roi_single[0] == 0:
-                                roi_single = roi_single[1:]
-                            ds_fs_onehot[f, roi_single.astype(int)] = 1
-                    else:
-                        for f, roi_fiber in enumerate(ds_fs):
-                            roi_unique = numpy.unique(roi_fiber)
-                            # print(roi_unique)
-                            # print(roi_map[0])
-                            assert set(roi_unique).issubset(set(roi_map[0]))
-                            for roi in roi_unique:
-                                roi_new = roi_map[1][roi_map[0] == roi]
-                                roi_fiber[roi_fiber == roi] = roi_new
-                            roi_single = numpy.unique(roi_fiber)
-                            if roi_single[0] == 0:
-                                roi_single = roi_single[1:]
-                            ds_fs_onehot[f, roi_single.astype(int)] = 1
-                    return ds_fs_onehot
-                ds_fs_onehot = one_hot_encoding(d_roi)
-                def surf_encoding(fiber_surf_dk):
-                    fiber_surfs = fiber_surf_dk.astype(int)
-                    surf_labels = numpy.unique(fiber_surfs)
-                    surf_map = numpy.load('dk_map.npy')
-                    if surf_labels[0] == 0:
-                        surf_labels = surf_labels[1:]
-                    for surf_label in surf_labels:
-                        fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
-                    ds_surf_onehot_dk = numpy.zeros((len(fiber_surfs), len(surf_map)))
-                    for s in range(len(fiber_surfs)):
-                        if fiber_surfs[s][1] == 0:
-                            fiber_surfs[s][1] = fiber_surfs[s][0]
-                        if fiber_surfs[s][0] == 0:
-                            fiber_surfs[s][0] = fiber_surfs[s][1]
-                        if fiber_surfs[s][1] == 0 and fiber_surfs[s][0] == 0:
-                            continue
-                        ds_surf_onehot_dk[s, fiber_surfs[s]] = 1
-                    return ds_surf_onehot_dk
-                surf_dk_onehot = surf_encoding(fiber_surf_dk)
-            #     numpy.savez(os.path.join('/media/annabelchen/DataShare/deepClustering/HCPTestingData/tractography_yc/test_save_PPMI',
-            #                      subject_id + '_data.npz'), x_array, ds_fs_onehot, surf_dk_onehot)
-
-            # for id,test_subject in enumerate(test_data):
-            #     subject_id=test_subject.split('_')[0]
-            #     print(subject_id)
-            #     # if os.path.exists('../dataFolder/HCPTestingData/tractography_yc/tractography_labeled/metrics_DFC2/metrics_fs_surf/'+subject_id+'_measure.npz'):
-            #     #     continue
-            #     data=numpy.load(os.path.join(args.inputDirectoryt,test_subject))
-            #     x_array=data['arr_0']
-            #     ds_fs_onehot=data['arr_1']
-            #     if not args.data=='HCP':
-            #         surf_dk_onehot=data['arr_2']
-            #     else:
-            #         surf_dk = data['arr_3']
-            #         def surf_encoding(fiber_surf_dk):
-            #             fiber_surfs = fiber_surf_dk.astype(int)
-            #             surf_labels = numpy.unique(fiber_surfs)
-            #             surf_map = numpy.load('dk_map.npy')
-            #             for surf_label in surf_labels:
-            #                 fiber_surfs[numpy.where(fiber_surfs == surf_label)] = numpy.where(surf_map == surf_label)
-            #             ds_surf_onehot_dk = numpy.zeros((len(fiber_surfs), len(surf_map)))
-            #             for s in range(len(fiber_surfs)):
-            #                 ds_surf_onehot_dk[s, fiber_surfs[s]] = 1
-            #             return ds_surf_onehot_dk
-            #         surf_dk_onehot=surf_encoding(surf_dk)
-
-                if args.dataset == 'FiberMap':
-                    dataset = mnist.FiberMap_pair(x_array, ds_fs_onehot,surf_dk_onehot,
-                                               transform=transforms.Compose([transforms.ToTensor()]))
-                elif args.dataset == 'Fiber':
-                    dataset = mnist.Fiber_pair(x_array, ds_fs_onehot,surf_dk_onehot, transform=transforms.Compose([transforms.ToTensor()]))
-                dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch, shuffle=False, num_workers=workers)
-                dataset_size = len(dataset)
-                print("Testing set size:\t" + str(dataset_size))
-
-                # print(surf_cluster.shape)
-                print('surf_dk_onehot',surf_dk_onehot.shape)
-                #roi_cluster=numpy.load('roi_cluster_fs_1.npy')
-                roi_cluster = torch.tensor(roi_cluster).to(device)
-                surf_cluster = torch.tensor(surf_cluster).to(device)
-                time_all = []
-                for it in range(10):
-                    since = time.time()
-                    if args.fs:
-                        preds, probs = calculate_predictions_roi(model, dataloader, params, roi_cluster=roi_cluster,
-                                                                 surf_cluster=surf_cluster, surf_flag=args.surf)
-                    else:
-                        preds, probs = calculate_predictions_test(model, dataloader, params)
-
-                # if id==0:
-                #     list_all=[]
-                #     for n in range(num_clusters):
-                #         #print(n)
-                #         probs_cluster = probs[preds == n]
-                #         list_all.append(probs_cluster)
-                #     import matplotlib.pyplot as plt
-                #     figure, axes = plt.subplots(figsize=(50, 6))
-                #     flierprops = dict(marker='+', markersize=3)
-                #     axes.boxplot(list_all, patch_artist=True, widths=0.8, flierprops=flierprops)
-                #     plt.ylim([0, 0.6])
-                #     plt.xticks(rotation=90)
-                #     plt.tick_params(axis='x', labelsize=4)
-                    #plt.savefig('probablities_clusters_test1.png')
-
-                # input_pd=add_prob(input_pd, probs)
-                # cluster_colors = numpy.random.randint(0, 255, (num_clusters, 3))
-                # pd_c_list = wma.cluster.mask_all_clusters(input_pd, preds,
-                #                                           num_clusters,
-                #                                           preserve_point_data=True,
-                #                                           preserve_cell_data=True,
-                #                                           verbose=False)
-                # outdir='/media/annabelchen/DataShare/deepClustering/cluster_dcec/101006/DFC-ro'
-                # cluster_save(pd_c_list, outdir, input_pd, preds,num_clusters, cluster_colors)
-
-                    elapsed = time.time() - since
-                    time_all.append(elapsed)
-                time_mean = numpy.array(time_all).mean()
-                print('prediction time:', time_mean)
-                preds_pre, probs_pre = calculate_predictions_test(model_pretrained, dataloader, params)
-                DB_score_pre, wmpg_pre, tapc_pre,tspc_pre = metrics_calculation(preds_pre, x_array, ds_fs_onehot,surf_dk_onehot)
-                DB_score, wmpg, tapc,tspc = metrics_calculation(preds,x_array, ds_fs_onehot,surf_dk_onehot)
-                DB_all.append(DB_score)
-                wmpg_all.append(wmpg)
-                tapc_all.append(tapc)
-                tspc_all.append(tspc)
-                DB_all_pre.append(DB_score_pre)
-                wmpg_all_pre.append(wmpg_pre)
-                tapc_all_pre.append(tapc_pre)
-                tspc_all_pre.append(tspc_pre)
-
-                # outdir = args.outputDirectory + '/metrics'
-                # if not os.path.exists(outdir):
-                #     os.makedirs(outdir)
-                # print(outdir)
-                # numpy.savez(os.path.join(outdir, subject_id + '_measure.npz'), DB_score_pre, wmpg_pre, tapc_pre, tspc_pre)
-                # outdir = args.outputDirectory + '/metrics_fs'
-                # if not os.path.exists(outdir):
-                #     os.makedirs(outdir)
-                # print(outdir)
-                # numpy.savez(os.path.join(outdir, subject_id + '_measure.npz'), DB_score, wmpg, tapc, tspc)
-
-                if args.ro:
-                    #num_stds = [0.83] #[0.7,0.75,0.8,0.85]
-                    num_stds=[0.7] #HCP  f_IRM; 0.83; open_fMRI: 0.85
-                    #num_stds = [0.7, 0.045]
-                    #num_stds = [0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]
-                    #num_stds=[0.6,0.8,1.0,1.2,1.4,1.6,1.8,2.0,0.01,0.015,0.02,0.025,0.03,0.035,0.040,0.045]
-                    DB_score_ro_thr=numpy.zeros(len(num_stds))
-                    wmpg_ro_thr=numpy.zeros(len(num_stds))
-                    tapc_ro_thr=numpy.zeros(len(num_stds))
-                    tspc_ro_thr=numpy.zeros(len(num_stds))
-                    rate_left_thr=numpy.zeros(len(num_stds))
-                    preds_fs_surf = preds
-                    probs_fs_surf = probs
-                    for i,num_std in enumerate(num_stds):
-                        rate_removed_clu = numpy.zeros(num_clusters)
-                        if num_stds[i]<0.1:
-                            id_reject = numpy.where(probs_fs_surf < num_stds[i])[0]
-                            # for ic in range(num_clusters):
-                            #     index = numpy.where(preds_fs_surf == ic)[0]
-                            #     probc = probs_fs_surf[index]
-                            #     num_removed=len(numpy.where(probc<num_stds[i])[0])
-                            #     rate_removed_clu[ic]=num_removed/len(probc)
-                        else:
-                            id_reject = []
-                            probs_rejected=[]
-                            threshold=numpy.zeros(num_clusters)
-                            for ic in range(num_clusters):
-                                index = numpy.where(preds_fs_surf == ic)[0]
-                                probc = probs_fs_surf[index]
-                                #numpy.save('probabilities/testing/pobc_{:03d}.npy'.format(ic), probc)
-                                if len(probc) > 0:
-                                    mean=mean_atlas[ic]
-                                    std=std_atlas[ic]
-                                    #threshold[ic]=probc.mean() -probc.std()
-                                    #index1 = numpy.where((probc.mean() - probc) > num_std * probc.std())[0]
-                                    index1 = numpy.where((mean - probc) > num_std * std)[0]
-                                    if len(index1) > 0:
-                                        id_rejectc = index[index1]
-                                        id_reject.extend(id_rejectc)
-                                        prob_rejected=probc[index1]
-                                        probs_rejected.append(prob_rejected)
-                                        #rate_removed_clu[ic] = len(id_rejectc) / len(probc)
-                                    # else:
-                                    #     print(ic)
-                            #numpy.save('threshold_test.npy',threshold)
-                            id_reject = numpy.array(id_reject)
-                        #numpy.save('debug_ro/rate_removed_clu_{}.npy'.format(i), rate_removed_clu)
-                        probs_reject = probs_fs_surf[id_reject]
-                        if id_reject is not None:
-                            temp = numpy.ones(len(preds_fs_surf))
-                            temp[id_reject] = 0
-                            mask = temp > 0
-                            x_array_ro = x_array[mask]
-                            preds_fs_surf_ro = preds_fs_surf[mask]
-                            probs_fs_surf_ro = probs_fs_surf[mask]
-                            ds_fs_onehot_ro = ds_fs_onehot[mask]
-                            ds_surf_onehot_ro = surf_dk_onehot[mask]
-                            DB_score_ro, wmpg_ro, tapc_ro, tspc_ro = metrics_calculation(preds_fs_surf_ro, x_array_ro,
-                                                                                         ds_fs_onehot_ro, ds_surf_onehot_ro)
-                            rate_left = 1-len(preds_fs_surf_ro) / len(preds_fs_surf)
-                            print('fiber_removed:', rate_left)
-                            DB_score_ro_thr[i]=DB_score_ro
-                            wmpg_ro_thr[i]=wmpg_ro
-                            tapc_ro_thr[i]=tapc_ro
-                            tspc_ro_thr[i]=tspc_ro
-                            rate_left_thr[i]=rate_left
-                            DB_all_ro.append(DB_score_ro_thr)
-                            wmpg_all_ro.append(wmpg_ro_thr)
-                            tapc_all_ro.append(tapc_ro_thr)
-                            tspc_all_ro.append(tspc_ro_thr)
-                            rate_left_all.append(rate_left_thr)
-                        if num_stds[i] < 0.1:
-                            outdir = args.outputDirectory + '/metrics_fs_ro_p'
-                            print(outdir)
-                            if not os.path.exists(outdir):
-                                os.makedirs(outdir)
-                            #numpy.savez(os.path.join(outdir, subject_id + '_measure.npz'), DB_score_ro, wmpg_ro,tapc_ro, tspc_ro, rate_left)
-                        else:
-                            outdir = args.outputDirectory + '/metrics_fs_surf_ro'
-                            print(outdir)
-                            if not os.path.exists(outdir):
-                                os.makedirs(outdir)
-                            #numpy.savez(os.path.join(outdir, subject_id + '_measure.npz'), DB_score_ro, wmpg_ro, tapc_ro, tspc_ro, rate_left)
-
-                            maskc = numpy.ones(len(preds))
-                            maskc[id_reject] = 0
-                            pd_c = wma.filter.mask(input_pd, maskc, preserve_point_data=True, preserve_cell_data=True,
-                                                   verbose=False)
-                            input_pd1 = add_prob(pd_c, probs_fs_surf_ro)
-                            cluster_colors = numpy.random.randint(0, 255, (num_clusters, 3))
-                            pd_c_list = wma.cluster.mask_all_clusters(input_pd1, preds_fs_surf_ro,
-                                                                      num_clusters,
-                                                                      preserve_point_data=True,
-                                                                      preserve_cell_data=True,
-                                                                      verbose=False)
-                            #outdir = '/media/annabelchen/DataShare/deepClustering/cluster_dcec/101006/DFC_ro_{}'.format(num_stds[i])
-                            #outdir = '/media/annabelchen/DataShare/deepClustering/cluster_dcec/101006/PPMI'
-                            outdir=args.outputDirectory+'/'+subject_id
-                            cluster_save(pd_c_list, outdir, input_pd1, preds_fs_surf_ro, num_clusters, cluster_colors)
-
-            print('pretrained results:')
-            DB_score_pre = numpy.array(DB_all_pre).mean()
-            wmpg_pre = numpy.array(wmpg_all_pre).mean()
-            tapc_pre = numpy.array(tapc_all_pre).mean()
-            tspc_pre = numpy.array(tspc_all_pre).mean()
-            print(numpy.array(DB_all_pre), numpy.array(wmpg_all_pre), numpy.array(tapc_all_pre), numpy.array(tspc_all_pre))
-            print(DB_score_pre, wmpg_pre,tapc_pre,tspc_pre)
-            utils.print_both(f,'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}'.format(DB_score_pre, wmpg_pre, tapc_pre,tspc_pre))
-
-            print('final results:')
-            DB_score=numpy.array(DB_all).mean()
-            wmpg=numpy.array(wmpg_all).mean()
-            tapc=numpy.array(tapc_all).mean()
-            tspc = numpy.array(tspc_all).mean()
-            print(numpy.array(DB_all), numpy.array(wmpg_all), numpy.array(tapc_all),numpy.array(tspc_all))
-            print(DB_score, wmpg, tapc,tspc)
-            utils.print_both(f,
-                              'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}'.format(DB_score, wmpg, tapc,tspc))
-
-
-            # print('outlier removal results:')
-            # DB_score_ro=numpy.array(DB_all_ro).mean()
-            # wmpg_ro=numpy.array(wmpg_all_ro).mean()
-            # tapc_ro=numpy.array(tapc_all_ro).mean()
-            # tspc_ro = numpy.array(tspc_all_ro).mean()
-            # rate_left_ro = numpy.array(rate_left_all).mean()
-            # print(numpy.array(DB_all_ro), numpy.array(wmpg_all_ro), numpy.array(tapc_all_ro),numpy.array(tspc_all_ro),numpy.array(rate_left_all))
-            # print(DB_score_ro, wmpg_ro, tapc_ro,tspc_ro,rate_left_ro)
-            # utils.print_both(f,
-            #                  'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}\tfiber_left: {4:.4f}'.format(DB_score_ro, wmpg_ro, tapc_ro,tspc_ro,rate_left_ro))
-            if args.ro:
-                print('outlier removal results:')
-                DB_score_ro=numpy.mean(numpy.array(DB_all_ro),0)
-                wmpg_ro=numpy.mean(numpy.array(wmpg_all_ro),0)
-                tapc_ro=numpy.mean(numpy.array(tapc_all_ro),0)
-                tspc_ro = numpy.mean(numpy.array(tspc_all_ro),0)
-                rate_left_ro = numpy.mean(numpy.array(rate_left_all),0)
-                #print(numpy.array(DB_all_ro), numpy.array(wmpg_all_ro), numpy.array(tapc_all_ro),numpy.array(tspc_all_ro),numpy.array(rate_left_all))
-                print(DB_score_ro)
-                print(wmpg_ro)
-                print(tapc_ro)
-                print(tspc_ro)
-                print(rate_left_ro)
-                # utils.print_both(f,
-                #                  'DB: {0:.4f}\tWMPG: {1:.4f}\tTAPC: {2:.4f}\tTSPC: {3:.4f}\tfiber_left: {4:.4f}'.format(DB_score_ro, wmpg_ro, tapc_ro,tspc_ro,rate_left_ro))
-
-
-
+                        cluster_save(pd_c_list, outdir, input_pd, preds_fs_surf_ro, num_clusters, cluster_colors)
 
     elif args.mode == 'pretrain':
         model = training_functions_fiber_pair.pretraining(model, dataloader,dataloaderv, criteria[0], optimizers[1], schedulers[1], pretrain_epochs, params)
